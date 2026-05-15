@@ -1,9 +1,13 @@
 # Embrix for Python and Node.js
+
+# Embrix for Python and Node.js
 <p align="left">
 	<a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-green.svg" /></a>
 	<img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-First-3178C6?logo=typescript&logoColor=white" />
 	<img alt="Package Manager" src="https://img.shields.io/badge/Package_Manager-pnpm-F69220?logo=pnpm&logoColor=white" />
 </p>
+Embrix is a local-first AI application toolkit for Python and Node.js.
+
 Embrix is a local-first AI application toolkit for Python and Node.js.
 
 It brings together the pieces you usually need for practical AI workflows across both packages:
@@ -335,6 +339,29 @@ Built-in chat adapters include:
 
 That means the same app structure can work with hosted APIs, internal gateways, or local model runtimes.
 
+## Azure database support
+
+Embrix can work with Azure-hosted databases as source systems for vectorization and querying.
+
+Current connector patterns fit well with:
+
+- Azure Database for PostgreSQL
+- Azure Database for MySQL
+- Azure Cosmos DB for MongoDB
+- Azure SQL Database through SQLAlchemy
+
+Today, `VectorStore` is local-first and uses SQLite or memory by default.
+
+That means a practical deployment pattern is:
+
+- keep operational data in an Azure database
+- use `DBVectorizer` to read and embed rows
+- store vectors in Embrix locally or through a custom adapter
+
+If you want Azure to act as the vector database itself, the strongest fit for the current architecture is Azure Database for PostgreSQL with `pgvector`.
+
+Because Embrix already separates database connectors from vector storage and supports custom adapters, adding a PostgreSQL vector backend is a natural extension.
+
 ## REST API
 
 Start the API server locally:
@@ -390,6 +417,7 @@ embrix-node/
 - backend services that need retrieval or agent steps
 - document Q&A
 - database exploration with semantic search
+- Azure-hosted application data with Embrix retrieval workflows
 - lightweight internal AI tools
 
 ## Development
