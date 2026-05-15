@@ -1,5 +1,9 @@
 # Embrix for Python and Node.js
-
+<p align="left">
+	<a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-green.svg" /></a>
+	<img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-First-3178C6?logo=typescript&logoColor=white" />
+	<img alt="Package Manager" src="https://img.shields.io/badge/Package_Manager-pnpm-F69220?logo=pnpm&logoColor=white" />
+</p>
 Embrix is a local-first AI application toolkit for Python and Node.js.
 
 It brings together the pieces you usually need for practical AI workflows across both packages:
