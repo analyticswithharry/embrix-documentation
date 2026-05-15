@@ -1,17 +1,17 @@
-# Embrix Documentation
+# Embrix for Python and Node.js
 
-Embrix is a local-first AI toolkit for Python and Node.js applications.
+Embrix is a local-first AI application toolkit for Python and Node.js.
 
-It provides a practical set of building blocks for modern AI workflows:
+It brings together the pieces you usually need for practical AI workflows across both packages:
 
 - vector storage and semantic search
-- retrieval-augmented generation (RAG)
-- tool-using agents
 - stateful workflow orchestration
-- database vectorization and querying
-- bring-your-own model provider support
+- tool-using agents
+- retrieval-augmented generation (RAG)
+- database vectorization and natural-language querying
+- an optional REST API for local services
 
-This repository is intended as the documentation and demo companion for the published Embrix packages.
+By default, Embrix works locally with SQLite and a bring-your-own-model approach.
 
 ## Packages
 
@@ -27,7 +27,7 @@ Install from PyPI:
 pip install embrix
 ```
 
-Optional extras:
+Useful extras:
 
 ```bash
 pip install "embrix[openai]"
@@ -47,7 +47,7 @@ Install from npm:
 npm install embrix-node
 ```
 
-Install only the drivers or SDKs you need:
+Install the drivers or provider SDKs you actually use:
 
 ```bash
 npm install better-sqlite3
@@ -57,34 +57,31 @@ npm install mysql2
 npm install mongodb
 ```
 
-## Repository contents
+## What the packages include
 
-This documentation repository includes:
+### Python package
 
-- `embrix_python.ipynb` — Python SDK demo notebook
-- `embrix_node.ipynb` — Node.js SDK demo notebook
-- SQLite demo database files used by the notebooks
+| Component                        | Purpose                                                                     |
+| -------------------------------- | --------------------------------------------------------------------------- |
+| `VectorStore`                    | Store vectors and run similarity search                                     |
+| `StateGraph`                     | Build multi-step workflows with state transitions                           |
+| `Agent`                          | Run tool-using agents with your chosen model                                |
+| `RAGPipeline`                    | Ingest documents, retrieve context, and answer questions                    |
+| `DBVectorizer` + `DBQueryEngine` | Turn database rows into searchable context and query them in plain language |
 
-The notebooks demonstrate:
+### Node.js package
 
-- environment setup
-- vector search
-- workflow execution
-- agent usage
-- RAG pipelines
-- database vectorization and querying
+| Component                        | Purpose                                                      |
+| -------------------------------- | ------------------------------------------------------------ |
+| `VectorStore`                    | Local vector persistence and similarity search               |
+| `StateGraph`                     | State-based workflow execution                               |
+| `Agent`                          | Tool-using agents with iterative reasoning                   |
+| `RAGPipeline`                    | Retrieval plus grounded response generation                  |
+| `DBVectorizer` + `DBQueryEngine` | Database row vectorization, semantic search, and text-to-SQL |
 
-## Python package overview
+## Quick start
 
-The Python package includes:
-
-- `VectorStore` for vector persistence and similarity search
-- `StateGraph` for multi-step workflows
-- `Agent` for tool-using agent behavior
-- `RAGPipeline` for document ingestion and grounded answers
-- `DBVectorizer` and `DBQueryEngine` for database-aware retrieval and querying
-
-### Python quick start
+### Python
 
 #### Vector search
 
@@ -92,43 +89,46 @@ The Python package includes:
 from embrix import VectorStore
 
 store = VectorStore()
-
-store.upsert("docs", [
-    {
-        "_id": "1",
-        "values": [0.1, 0.2, 0.3],
-        "text": "Embrix helps build local-first AI apps.",
-        "metadata": {"topic": "overview"},
-    }
-])
+store.upsert(
+    "docs",
+    [
+        {
+            "_id": "intro",
+            "values": [0.1, 0.2, 0.3],
+            "text": "Embrix runs local AI workflows with simple building blocks.",
+            "metadata": {"topic": "overview"},
+        }
+    ],
+)
 
 results = store.query("docs", [0.1, 0.2, 0.3], top_k=1)
 print(results)
+store.close()
 ```
 
 #### Stateful workflow
 
 ```python
-from embrix import START, END, StateGraph
+from embrix import END, START, StateGraph
 
 def retrieve(state):
     return {"context": f"facts for: {state['question']}"}
 
-def answer(state):
-    return {"answer": f"Response using {state['context']}"}
+def respond(state):
+    return {"answer": f"Answer from {state['context']}"}
 
 graph = StateGraph()
 graph.add_node("retrieve", retrieve)
-graph.add_node("answer", answer)
+graph.add_node("respond", respond)
 graph.add_edge(START, "retrieve")
-graph.add_edge("retrieve", "answer")
-graph.add_edge("answer", END)
+graph.add_edge("retrieve", "respond")
+graph.add_edge("respond", END)
 
-result = graph.compile().invoke({"question": "What is Embrix?"})
+result = graph.compile().invoke({"question": "What is retrieval?"})
 print(result["answer"])
 ```
 
-#### Agent
+#### Agent with your own provider
 
 ```python
 from embrix import Agent, OpenAICompatibleChatModel
@@ -160,51 +160,31 @@ pipeline = RAGPipeline(
     llm=OllamaChatModel(model="llama3.1"),
 )
 
-pipeline.ingest(
-    ["Embrix supports vector search, workflows, agents, and database querying."],
-    namespace="docs",
-)
+pipeline.ingest([
+    "Embrix supports retrieval, workflows, agents, and database tools."
+], namespace="docs")
 
 print(pipeline.query("What does Embrix support?", namespace="docs"))
 ```
 
-#### Database querying
+#### Database search and question answering
 
 ```python
-from embrix import DBVectorizer, DBQueryEngine, VectorStore
+from embrix import DBQueryEngine, DBVectorizer, VectorStore
 from embrix.db import connect as db_connect
 
 connector = db_connect("sqlite", db_path="products.db")
-vectorizer = DBVectorizer(
-    connector,
-    embedder,
-    store=VectorStore(backend="memory", dimension=embedder.dimension),
-)
-
-vectorizer.vectorize_table(
-    "products",
-    namespace="products",
-    text_columns=["name", "description"],
-)
+vectorizer = DBVectorizer(connector, embedder, store=VectorStore(backend="memory", dimension=embedder.dimension))
+vectorizer.vectorize_table("products", namespace="products", text_columns=["name", "description"])
 
 engine = DBQueryEngine(vectorizer=vectorizer, llm=chat_model, connector=connector)
-print(engine.search("budget running shoes", namespace="products"))
-print(engine.sql_query("Show products under 100 dollars", table="products"))
+hits = engine.search("budget running shoes", namespace="products")
+rows = engine.sql_query("Show products under 100 dollars", table="products")
 ```
 
-## Node.js package overview
+### Node.js
 
-The Node.js package includes:
-
-- `VectorStore` for vector persistence and search
-- `StateGraph` for state-based workflows
-- `Agent` for tool-driven agent execution
-- `RAGPipeline` for retrieval and grounded generation
-- `DBVectorizer` and `DBQueryEngine` for database search and text-to-SQL
-
-### Node.js quick start
-
-#### Vector search
+#### Vector storage
 
 ```ts
 import { VectorStore } from "embrix-node";
@@ -215,7 +195,7 @@ store.upsert("docs", [
   {
     id: "intro",
     values: [0.1, 0.2, 0.3],
-    text: "Embrix helps build local-first AI apps.",
+    text: "Embrix helps you build local-first AI features.",
     metadata: { topic: "overview" },
   },
 ]);
@@ -227,35 +207,28 @@ console.log(results);
 #### Stateful workflow
 
 ```ts
-import { START, END, StateGraph } from "embrix-node";
+import { END, START, StateGraph } from "embrix-node";
 
-type WorkflowState = {
-  question: string;
-  context?: string;
-  answer?: string;
-};
+type WorkflowState = { question: string; context?: string; answer?: string };
 
 const graph = new StateGraph<WorkflowState>();
-
 graph.addNode("retrieve", (state) => ({
   ...state,
   context: `facts for ${state.question}`,
 }));
-
-graph.addNode("answer", (state) => ({
+graph.addNode("respond", (state) => ({
   ...state,
-  answer: `Response using ${state.context}`,
+  answer: `Answer from ${state.context}`,
 }));
-
 graph.addEdge(START, "retrieve");
-graph.addEdge("retrieve", "answer");
-graph.addEdge("answer", END);
+graph.addEdge("retrieve", "respond");
+graph.addEdge("respond", END);
 
-const result = await graph.compile().invoke({ question: "What is Embrix?" });
+const result = await graph.compile().invoke({ question: "What is retrieval?" });
 console.log(result.answer);
 ```
 
-#### Agent
+#### Agent with your own provider
 
 ```ts
 import { Agent, OpenAICompatibleChatModel, Tool } from "embrix-node";
@@ -263,7 +236,9 @@ import { Agent, OpenAICompatibleChatModel, Tool } from "embrix-node";
 const calculator = new Tool(
   "calculator",
   "Evaluate arithmetic expressions",
-  async (input) => String(Function(`return (${input})`)()),
+  async (input) => {
+    return String(Function(`return (${input})`)());
+  },
 );
 
 const agent = new Agent({
@@ -274,7 +249,9 @@ const agent = new Agent({
   }),
 });
 
-console.log(await agent.run("Use the calculator tool to compute 12 * 9."));
+console.log(
+  await agent.run("Use the calculator tool to compute (12 * 9) + 4."),
+);
 ```
 
 #### RAG pipeline
@@ -292,16 +269,15 @@ const embedder = new OpenAIEmbedder({ apiKey: process.env.OPENAI_API_KEY! });
 const llm = createChatModel("ollama", { model: "llama3.1" });
 
 const rag = new RAGPipeline(embedder, llm, store);
-
 await rag.ingest(
-  ["Embrix supports vector search, workflows, agents, and database querying."],
+  ["Embrix supports search, workflows, agents, and database tooling."],
   "docs",
 );
 
 console.log(await rag.query("What does Embrix support?", "docs"));
 ```
 
-#### Database querying
+#### Database search and querying
 
 ```ts
 import {
@@ -321,7 +297,6 @@ const store = new VectorStore({
 });
 
 const vectorizer = new DBVectorizer(connector, embedder, { store });
-
 await vectorizer.vectorizeTable("products", "products", {
   textColumns: ["name", "description"],
 });
@@ -335,16 +310,18 @@ const engine = new DBQueryEngine(vectorizer, undefined, {
 });
 
 console.log(await engine.search("budget running shoes", "products"));
-console.log(await engine.sqlQuery("Show products under 100 dollars", "products"));
+console.log(
+  await engine.sqlQuery("Show products under 100 dollars", "products"),
+);
 ```
 
-## Provider model
+## Model provider approach
 
-Embrix does not bundle its own hosted model service.
+Embrix does not bundle a hosted model service.
 
-Instead, you connect it to your own provider, gateway, API key, or local runtime.
+You plug in your own provider, key, gateway, or local runtime.
 
-Built-in provider adapters include:
+Built-in chat adapters include:
 
 - `OpenAICompatibleChatModel`
 - `AnthropicChatModel`
@@ -352,72 +329,97 @@ Built-in provider adapters include:
 - `OllamaChatModel`
 - `CustomChatModel`
 
-This makes Embrix suitable for local development, private infrastructure, hosted APIs, and offline-friendly workflows.
+That means the same app structure can work with hosted APIs, internal gateways, or local model runtimes.
 
-## Architecture
+## Azure database support
 
-```text
-User Question / Application Input
-                |
-                v
-        Embrix Building Blocks
+Embrix can work with Azure-hosted databases as source systems for vectorization and querying.
 
-   +-----------------------------+
-   | VectorStore                 |
-   | Store vectors and search    |
-   +-----------------------------+
-                |
-                v
-   +-----------------------------+
-   | RAGPipeline                 |
-   | Retrieve context and answer |
-   +-----------------------------+
-                |
-                v
-   +-----------------------------+
-   | Agent                       |
-   | Use tools and reason        |
-   +-----------------------------+
-                |
-                v
-   +-----------------------------+
-   | StateGraph                  |
-   | Run multi-step workflows    |
-   +-----------------------------+
-                |
-                v
-   +-----------------------------+
-   | DBVectorizer / DBQueryEngine|
-   | Query structured data       |
-   +-----------------------------+
-                |
-                v
-          Final Output
+Current connector patterns fit well with:
+
+- Azure Database for PostgreSQL
+- Azure Database for MySQL
+- Azure Cosmos DB for MongoDB
+- Azure SQL Database through SQLAlchemy
+
+Today, `VectorStore` is local-first and uses SQLite or memory by default.
+
+That means a practical deployment pattern is:
+
+- keep operational data in an Azure database
+- use `DBVectorizer` to read and embed rows
+- store vectors in Embrix locally or through a custom adapter
+
+If you want Azure to act as the vector database itself, the strongest fit for the current architecture is Azure Database for PostgreSQL with `pgvector`.
+
+Because Embrix already separates database connectors from vector storage and supports custom adapters, adding a PostgreSQL vector backend is a natural extension.
+
+## REST API
+
+Start the API server locally:
+
+```bash
+uvicorn embrix.api.server:app --reload --port 8080
 ```
 
-## Typical use cases
+Main endpoints:
 
-- internal knowledge tools
-- semantic search applications
-- RAG-backed assistants
-- tool-using AI agents
-- workflow-based automation
-- database exploration in natural language
-- local-first AI prototypes
+- `POST /vectors/upsert`
+- `POST /vectors/query`
+- `POST /vectors/fetch`
+- `POST /vectors/delete`
+- `GET /vectors/list`
+- `GET /describe_index_stats`
+- `GET /namespaces`
+- `GET /health`
 
-## Repository structure
+## Package layout
+
+### Python
 
 ```text
-embrix-documentation/
-├── README.md
-├── LICENSE
-├── embrix_python.ipynb
-├── embrix_node.ipynb
-├── embrix_python_demo.sqlite
-├── embrix_node_products.sqlite
-├── embrix_node_db_vectors.sqlite
-├── embrix_node_rag.db
-└── embrix_node_vector_demo.sqlite
+embrix/
+├── agents/
+├── api/
+├── db/
+├── embeddings/
+├── graph/
+├── llms/
+├── rag/
+└── vector/
+```
+
+### Node.js
+
+```text
+embrix-node/
+├── src/agents/
+├── src/db/
+├── src/embeddings/
+├── src/graph/
+├── src/llms/
+├── src/rag/
+└── src/vector/
+```
+
+## Common use cases
+
+- local AI prototypes
+- notebook experiments
+- backend services that need retrieval or agent steps
+- document Q&A
+- database exploration with semantic search
+- Azure-hosted application data with Embrix retrieval workflows
+- lightweight internal AI tools
+
+## Development
+
+Build the Node package locally:
+
+```bash
+cd embrix-node
+npm install
+npm run build
 ```
 
 ## License
